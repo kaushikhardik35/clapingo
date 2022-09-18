@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <form action="/student/<%=student._id%>/addFav" method="post">
+    <%for(let teacher of teachers){%>
+        <%if(!student.favTeacher.includes(teacher._id)){%>
+            <br>
+              <input type="checkbox" value="<%=teacher._id%>" name="addFav1"><%=teacher.name%> "<%=teacher._id%>
+            <%}}%>
+            <button type="submit">Submit</button>
+        </form>
+
+</body>
+
+</html>
