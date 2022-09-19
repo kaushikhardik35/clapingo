@@ -12,6 +12,8 @@ mongoose.connect('mongodb://localhost:27017/clapingo',{
     useUnifiedTopology:true
 
 });
+const session = require('express-session');
+const flash = require('connect-flash');
 const ejsMate = require('ejs-mate');
 const methodOverride = require('method-override');
 const { type } = require('os');
@@ -23,14 +25,19 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'))
 app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride('_method'));
-app.use(express.static(path.join(__dirname, 'public')))
-
-
+app.use(express.static(path.join(__dirname, 'public')));
+const sessionOptions={secret:"thisisAsecret",resave:false,saveUninitialized:false}
+app.use(session(sessionOptions));
+app.use(flash());
 const db = mongoose.connection;
 db.on("error", console.error.bind(console, "connection error:"));
 db.once("open", () => {
     console.log("Database connected");
 });
+
+
+
+//*********************************************************************************************** */
 
 app.get('/',(req,res)=>{
     res.render('home.ejs');
@@ -41,7 +48,7 @@ app.get('/login/teacher',(req,res)=>{
 })
 
 app.get('/login/student',(req,res)=>{
-    res.render('login_student.ejs');
+    res.render('login_student.ejs',{messages:req.flash('error')});
 })
 
 app.get('/register/teacher',(req,res)=>{
@@ -60,7 +67,7 @@ app.get('/student/:id/addFav',auth,async (req,res)=>{
     // const tcr = await Teacher.findOne({password:'rihsi'});
     // student.favTeacher.push(tcr);
     // await student.save();
-    res.render('addFav',{id,student,teachers})
+    res.render('addFav',{id,student,teachers,messages:req.flash('error')});
 })
 app.get('/student/:id/deleteFav',auth,async (req,res)=>{
     const id = req.params.id;
@@ -70,12 +77,12 @@ app.get('/student/:id/deleteFav',auth,async (req,res)=>{
     // const tcr = await Teacher.findOne({password:'rihsi'});
     // student.favTeacher.push(tcr);
     // await student.save();
-    res.render('deleteFav',{id,student,teachers})
+    res.render('deleteFav',{id,student,teachers,messages:req.flash('error')});
 })
 
 app.get('/student/:id/home',auth,async (req,res)=>{
     const id = req.params.id;
-    res.render('studentHome',{id});
+    res.render('studentHome',{id,messages:req.flash('success')});
 })
 app.get('/student/:id',auth,async (req,res)=>{
     const cookies = await req.cookies;
@@ -92,6 +99,9 @@ app.get('/student/:id',auth,async (req,res)=>{
         res.send(req.params.id);
     }
 })
+
+
+//************************************************************************ */
 
 app.post('/register/student',async (req,res)=>{
     const {name,email,phone,password}=req.body;
@@ -116,13 +126,19 @@ app.post('/login/student',async(req,res)=>{
     const {email,password}=req.body;
     const user =await Student.findOne({email:email});
     console.log(user);
-    if(user.password==password){
+    if(user==null){
+        req.flash('error','Could Not find User');
+        res.redirect('/login/student');
+    }
+    else if(user.password==password){
         const token = jwt.sign({_id:user._id},"thisisasecretkeyhelloonetwothreefour");
         res.cookie('token',token);
         console.log(user._id);
+        req.flash('success','Successfully logged IN!!');
         res.redirect(`/student/${user._id}`);
     }
     else{
+        req.flash('error','Incorrect Password')
         res.redirect('/login/student');
     }
 })
@@ -133,26 +149,42 @@ app.post('/student/:id/addFav',auth,async (req,res)=>{
     const x= typeof addFav1;
     if(x=='string'){
         const tcr = await Teacher.findById(addFav1);
-        console.log(tcr);
+         if(tcr==null){
+            //console.log('Null teacher');
+            req.flash('error',`${addFav1} is not a teacher`);
+            return res.redirect(`/student/${req.params.id}/addFav`);
+         }
          student.favTeacher.push(tcr);
         tcr.favOf.push(student);
          await student.save();
          await tcr.save();
+        console.log(tcr);
 
     }else if(x=='object'){
     for(let fav of addFav1){
-        console.log(fav);
-    
+        //console.log(fav);
+        
          const tcr = await Teacher.findById(fav);
-        console.log(tcr);
+         //console.log(tcr);
+          if(tcr==null){
+           // console.log("I AM NULLL%*^(*^(^(^");
+            req.flash('error',`${fav} is not a teacher`);
+            return res.redirect(`/student/${req.params.id}/addFav`);
+        }
+        //console.log(tcr);
          student.favTeacher.push(tcr);
         tcr.favOf.push(student);
          await student.save();
          await tcr.save();
     }
     }
+    req.flash('success',"Successfully added favourite teacher");
     res.redirect(`/student/${req.params.id}/home`)
-})
+});
+
+
+
+
 app.post('/student/:id/deleteFav',auth,async (req,res)=>{
     const deleteFav = req.body.deleteFav;
      const student =await Student.findById(req.params.id);
@@ -163,7 +195,11 @@ const x = typeof deleteFav;
        // console.log(fav);
        
          const tcr = await Teacher.findById(fav);
-        console.log(tcr);
+
+         if(tcr==null){
+            req.flash('error',`${fav} is not a teacher`);
+            return res.redirect(`/student/${req.params.id}/deleteFav`);
+        }
          student.favTeacher.pull(tcr);
         tcr.favOf.pull(student);
          await student.save();
@@ -172,6 +208,11 @@ const x = typeof deleteFav;
     else if(x=='string'){
         const tcr = await Teacher.findById(deleteFav);
         console.log(tcr);
+        if(tcr==null){
+            //console.log('Null teacher');
+            req.flash('error',`${deleteFav} is not a teacher`);
+            return res.redirect(`/student/${req.params.id}/deleteFav`);
+         }
          student.favTeacher.pull(tcr);
         tcr.favOf.pull(student);
          await student.save();

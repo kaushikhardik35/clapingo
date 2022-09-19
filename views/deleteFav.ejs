@@ -9,6 +9,10 @@
 </head>
 
 <body>
+
+    <%=messages%>
+    <hr>
+
     <form action="/student/<%=student._id%>/deleteFav" method="post">
     <%for(let teacher of teachers){%>
         <%if(student.favTeacher.includes(teacher._id)){%>
