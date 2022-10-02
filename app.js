@@ -16,6 +16,8 @@ const flash = require("connect-flash");
 const ejsMate = require("ejs-mate");
 const methodOverride = require("method-override");
 const { type } = require("os");
+const sharp = require("sharp");
+const imgDown = require("image-downloader");
 
 const app = express();
 app.use(cookieParser());
@@ -108,6 +110,10 @@ app.get("/student/:id", auth, async (req, res) => {
   }
 });
 
+app.get("/resizeImg", async (req, res) => {
+  res.render("resImg");
+});
+
 //************************************************************************ */
 
 app.post("/register/student", async (req, res) => {
@@ -191,11 +197,11 @@ app.post("/student/:id/addFav", auth, async (req, res) => {
 });
 
 app.get("/mostFavTeacher", async (req, res) => {
-        const teachers = await Teacher.aggregate([{ $sort: { favOf : -1} }])
+  const teachers = await Teacher.aggregate([{ $sort: { favOf: -1 } }]);
 
-        //Teacher.aggregate([{ $sort: { favOf :{ $size : 1} } }]);
-    const teacher = await Teacher.findOne({});
-    res.send(teachers[0]);
+  //Teacher.aggregate([{ $sort: { favOf :{ $size : 1} } }]);
+  const teacher = await Teacher.findOne({});
+  res.send(teachers[0]);
 });
 
 app.post("/student/:id/deleteFav", auth, async (req, res) => {
@@ -234,6 +240,30 @@ app.post("/student/:id/deleteFav", auth, async (req, res) => {
 
   res.redirect(`/student/${req.params.id}/home`);
 });
+
+app.post("/resizeImg", async (req, res) => {
+  const img = req.body.url;
+  const options = {
+    url: img,
+    dest: "/Users/hardikkaushik/Desktop/samudra/images/photo.jpg", // will be saved to /path/to/dest/image.jpg
+  
+
+  };
+
+  await imgDown.image(options)
+  .then(({ filename }) => {
+    console.log('Saved to', filename);
+  })
+  .catch((err) => console.error(err));
+
+  await sharp('./images/photo.jpg')
+    .resize(50,50)
+    .toFile('./images/compressed.jpg')
+
+  res.sendFile('/Users/hardikkaushik/Desktop/samudra/images/compressed.jpg');
+});
+
+//************************************************************************ */
 
 app.listen(3000, () => {
   console.log("Live on port 3000");
